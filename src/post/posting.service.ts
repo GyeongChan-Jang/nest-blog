@@ -1,47 +1,51 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
-import { Posting, PostingStatus } from './posting.model';
+import { Body, Injectable, NotFoundException } from '@nestjs/common';
+import { PostingStatus } from './posting.model';
 import { v1 as uuid } from 'uuid';
 import { CreatePostingDto } from './dto/create-posting.dto';
+import { PrismaService } from 'src/prisma.service';
+import { Posting } from '@prisma/client';
+
 @Injectable()
 export class PostingService {
-  // 다른 컴포넌트에서 접근하지 못하도록 private으로 선언
-  private Postings: Posting[] = [];
+  constructor(private prismaService: PrismaService) {}
 
-  getAllPost(): Posting[] {
-    return this.Postings;
+  // 전체 조회
+  async getAllPosting(): Promise<Posting[]> {
+    return this.prismaService.posting.findMany();
   }
 
-  createPost(createPostingDto: CreatePostingDto) {
-    const posting: Posting = {
-      id: uuid(),
-      ...createPostingDto,
-      createdAt: new Date(),
-    };
-
-    this.Postings.push(posting);
+  // 특정 게시물 조회
+  async getPostingById(id: number): Promise<Posting | null> {
+    return this.prismaService.posting.findUnique({
+      where: {
+        id,
+      },
+    });
   }
 
-  getPostingById(id: string): Posting {
-    const found = this.Postings.find((post) => post.id === id);
-    if (!found) {
-      throw new NotFoundException(
-        `${id} 아이디를 가진 게시글을 찾을 수 없습니다.`,
-      );
-    }
-
-    return found;
+  // Posting 생성
+  async createPosting(@Body() createPostingDto: CreatePostingDto) {
+    return this.prismaService.posting.create({
+      data: {
+        ...createPostingDto,
+      },
+    });
   }
 
-  deletePosting(id: string): void {
-    const found = this.getPostingById(id);
-    if (!found) {
-      throw new NotFoundException(`${id}를 가진 게시물이 존재하지 않습니다.`);
-    }
+  // Posting 삭제
+  async deletePosting(id: number) {
+    return this.prismaService.posting.delete({
+      where: { id },
+    });
   }
 
-  updatePostingStats(id: string, status: PostingStatus): Posting {
-    const post = this.getPostingById(id);
-    post.status = status;
-    return post;
+  // Posting 상태 수정
+  async updatePostingStatus(id: number, status: PostingStatus) {
+    return this.prismaService.posting.update({
+      where: { id },
+      data: {
+        status,
+      },
+    });
   }
 }
